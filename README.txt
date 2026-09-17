@@ -10,3 +10,14 @@ Tras la realización de las tareas propuestas, algunas de las cuales se pedía r
 
 A continuación se incluyen algunas imágenes de la conversación mantenida con ChatGPT:
 
+1. Para el tablero de ajedrez
+
+<img src="images/conversacion-1.webp" width="600">
+
+2. Para la versión optimizada de la tarea de los puntos
+
+Con anterioridad se le había preguntado sobre un error que surgió a la hora de ejecutar el código
+
+<img src="images/conversacion-2.webp" width="600">
+
+<img src="images/conversacion-3.webp" width="600">
