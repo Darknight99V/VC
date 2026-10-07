@@ -34,9 +34,19 @@ Estas son las imágenes con los resultados:
 ![Gráfica 2 tarea 2](https://github.com/Darknight99V/VC/blob/master/P2/resultados/output2-tarea2.png)
 ![Gráfica 3 tarea 2](https://github.com/Darknight99V/VC/blob/master/P2/resultados/output3-tarea2.png)
 
+Como conclusión de estos resultados, se puede observar que Canny detecta mejor los bordes verticales y Sobel percibe mejor los bordes horizontales. Esto se debe seguramente a que utilizan algoritmos diferentes. También se puede observar, que aunque no resaltan las mismas filas, estas se encuentran mayoritariamente en las mismas zonas de la imagen, a la altura de los ojos del mandril. Como reflexión adicional, se podría utilizar otros valores a la hora de umbralizar la imagen de Sobel, y comprobar si los resultados se alejan o se acercan a los obtenidos con Canny.
 
-Canny detecta mejor bordes verticales y Sobel los bordes horizontales. También se ve que solo tienen pocas filas en común en la última imagen.
+<br><br>
 
+## Tarea 3
+**Tras ver los vídeos [My little piece of privacy](https://www.niklasroy.com/project/88/my-little-piece-of-privacy), [Messa di voce](https://youtu.be/GfoqiyB1ndE?feature=shared) y [Virtual air guitar](https://youtu.be/FIAmyoEpV5c?feature=shared) proponer un demostrador reinterpretando la parte de procesamiento de la imagen, tomando como punto de partida alguna de dichas instalaciones.**
+
+Para llevar a cabo esta tarea, se ha utilizado la técnica de diferencia de fotogramas. Lo que se ha pretendido hacer ha sido inspirado por la cortina mecánica del vídeo *My little piece of privacy*, pero usando una imagen de una cortina en su lugar. Al obtener la diferencia de fotogramas, se ha pasado a escala de grises para luego realizar un cálculo de en qué zona de la imagen hay más cantidad de píxeles blancos. En base a esto, se obtienen las coordenadas de dónde se encuentran los máximos para así poder superponer la imagen de la cortina.
+
+En la realización se ha consultado la Inteligencia Artificial (ChatGPT en este caso) para resolver ciertos aspectos del código, entre los que se encuentran los siguientes:
+- cargar una imagen en OpenCV para que tenga en cuenta el canal alpha
+- método de numpy que dé las coordenadas de los máximos que se calcularon
+- cómo superponer la imagen de la cortina teniendo en cuenta el canal alpha
 
 
 
