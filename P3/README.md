@@ -70,6 +70,8 @@ que son próximas en tamaño como las de 5 y 2 céntimos.
 
 (COMPLETAR)
 
+Una posible solución que se nos ocurrió para solventar este problema fue guardar las monedas detectadas entre frame y frame. Y más adelante, esta idea fue complementada con otras soluciones extras proporcionadas por la IA. Entre ellas, se encuentra un **tracking** de las monedas detectadas. Sin embargo, no se implementó por falta de tiempo. 
+
 <br><br>
 
 ## Tarea 2
