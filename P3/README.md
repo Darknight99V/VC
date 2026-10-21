@@ -70,8 +70,79 @@ que son próximas en tamaño como las de 5 y 2 céntimos.
 
 (COMPLETAR)
 
+Una posible solución en la que se pensó para solventar este problema fue guardar las posiciones de las monedas detectadas entre frame y frame. Y más adelante, esta idea fue complementada con otras soluciones extras proporcionadas por la IA. Entre ellas, se encuentra realizar **tracking** de las monedas detectadas. Sin embargo, no se implementó por falta de tiempo. 
+
 <br><br>
 
 ## Tarea 2
 
-(especificar primero el procedimiento seguido)
+Para el abordamiento de esta tarea se siguió el siguiente procedimiento.
+
+1. Segmentación de las imágenes de entrenamiento
+2. Extracción de características
+3. Selección y entrenamiento de un clasificador de la librería sklearn
+4. Testeo con la imagen de test proporcionada
+5. Análisis de los resultados y obtención de métricas
+
+<br><br>
+
+#### Segmentación de las imágenes de entrenamiento
+
+En un inicio se intentó utilizar ecualizado del histograma para reducir el ruido de las imágenes, pero no resultaba efectivo para las tres. Entonces, se procedió primero con el umbralizado, para el
+cual se utilizó *Otsu* y además se aplicó un suavizado Gaussiano previamente en un intento de reducir el ruido. Este proceso se realiza en la función *blur_and_otsu()* y utilizó con todas las imágenes de entrenamiento. Finalmente con la que mejor funcionó fue con el alquitrán, como se puede observar en la siguiente imagen:
+
+(imagen)
+
+Para las dos imágenes restantes se combinó el umbralizado con otras técnicas. En el caso de los fragmentos se probó de nuevo a realizar el equalizado del histograma, pero esta vez se suavizó la imagen con el filtro de la mediana previamente, lo que se realiza en la función *histogram()*. Después se umbralizó la imagen resultante con un valor de umbral de 15. Los resultados fueron los siguientes:
+
+(imagen)
+
+Finalmente, la imagen de los pellets presentó dificultades debido a la iluminación de la imagen. Por ello, se hizo una consulta a la IA, que sugirió realizar una corrección del brillo de la imagen con la función *divide()* de OpenCV. Tras ello se siguió con el umbralizado, se utilizó en este caso un valor de umbral de 245. Este procesado resultó de la siguiente manera:
+
+(imagen)
+
+Y con esto concluye el proceso de segmentación de las imágenes de entrenamiento.
+
+<br><br>
+
+#### Extracción de características
+
+El proceso de extracción de características se recoge en la función *extract_characteristics()*. Dicha función procede en primer lugar a extraer los contornos externos de la imagen procesada que se pasa como parámetro. Seguidamente, se recorren los contornos detectados y se calculan una serie de características geométricas, que son las siguientes:
+
+- área
+- perímetro
+- compacidad
+- ajuste de la elipse
+
+Además, se utilizan el valor del área y la longitud del contorno (len(c)) para hacer un pequeño filtrado adicional en caso de que se haya detectado algo de ruido como un contorno más. De manera adicional, se ha añadido como caracrerística el color de la partícula, que se obtuvo calculando el centro del objeto. Todas estas características se recogen en un vector, que a su vez se almacena en el array **features_matrix**.
+
+La extracción se realiza en cada una de las imagenes de entrenamiento y luego se combina todo en una única matriz. En este momento también se le ascocia a cada clase una *label*:
+- FRA -> 0
+- PEL -> 1
+- TAR -> 2
+
+<br><br>
+
+#### Selección y entrenamiento de un clasificador de la librería sklearn
+
+Se decidió utilizar el clasificador de Random Forest, que se basa en la generación de árboles de decisión a partir de la segmentación de los datos de entrenamiento. El entrenamiento fue el siguiente:
+
+```python
+clf = RandomForestClassifier(n_estimators=100, random_state=42)
+
+# entrenamos el clasificador con los datos obtenidos
+clf.fit(final_matrix, labels)
+```
+<br><br>
+
+#### Testeo con la imagen de test proporcionada
+
+
+<br><br>
+
+#### Análisis de los resultados y obtención de métricas
+
+Para esta parte del proceso de desarrolló una función que realiza estos cálculos y además devuelve la matriz de confusión, que en este caso fue:
+(imagen)
+
+(explicar un poco los resultados obtenidos, etc)
