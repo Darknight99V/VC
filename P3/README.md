@@ -65,10 +65,7 @@ pero los resultados obtenidos no detectaban del todo bien las monedas. Entonces 
 Después, para calcular la escala se hizo en función al radio y se cogió como referencia la moneda de 2€ que es la de mayor tamaño entre los círculos detectados por Hough. A la hora de buscar el valor de la moneda se utilizó un valor
 de tolerancia que tiene en cuenta el error que pueda surgir en los cálculos. La suma de dinero se va acumulando en la variable **total_value**.
 
-El problema principal que se encontró es las variaciones en la detección de monedas que existe de un frame a otro, por lo que el conteo varía de frame a frame. Además, seguramente por el valor de la tolerancia, se confunden algunas monedas
-que son próximas en tamaño como las de 5 y 2 céntimos.
-
-(COMPLETAR)
+El problema principal que se encontró es las variaciones en la detección de monedas que existe de un frame a otro, por lo que el conteo varía de frame a frame. Además, seguramente por el valor de la tolerancia, se confunden algunas monedas que son próximas en tamaño como las de 5 y 2 céntimos.
 
 Una posible solución en la que se pensó para solventar este problema fue guardar las posiciones de las monedas detectadas entre frame y frame. Y más adelante, esta idea fue complementada con otras soluciones extras proporcionadas por la IA. Entre ellas, se encuentra realizar **tracking** de las monedas detectadas. Sin embargo, no se implementó por falta de tiempo. 
 
@@ -137,7 +134,7 @@ clf.fit(final_matrix, labels)
 
 #### Testeo con la imagen de test proporcionada
 
-Para el desarrollo de este apartado, se planteó un primer acercamiento en el que se probaba a detectar los objetos de la imagen de testo (ver imagen del apartado) con un procesamiento muy básico, umbralizando con un método de **gaussiano adaptativo**. Seguidamente, al igual que con las imágenes de entrenamiento, se extrajeron las características geométricas previamente definidas, además del color del objeto. Luego, extrayendo datos del ficherp [Mps_test_bbs.csv](https://github.com/Darknight99V/VC/blob/master/P3/MPs_test_bbs.csv), se correlacionaron las coordenadas del centro calculado del objeto con las coordenadas del **bounding rectangle** del fichero para determinar que el objeto detectado pertenece a una determinada fila del archivo .csv y poder así determinar con certeza su clase. Por último, se fue pasando el vector de características calculado al clasificador y comparando su respuesta con la fila correspondiente en el fichero .csv. 
+Para el desarrollo de este apartado, se planteó un primer acercamiento en el que se probaba a detectar los objetos de la imagen de testeo (ver imagen del apartado) con un procesamiento muy básico, umbralizando con un método de **gaussiano adaptativo**. Seguidamente, al igual que con las imágenes de entrenamiento, se extrajeron las características geométricas previamente definidas, además del color del objeto. Luego, extrayendo datos del fichero [Mps_test_bbs.csv](https://github.com/Darknight99V/VC/blob/master/P3/MPs_test_bbs.csv), se correlacionaron las coordenadas del centro calculado del objeto con las coordenadas del **bounding rectangle** del fichero para determinar que el objeto detectado pertenece a una determinada fila del archivo .csv y poder así determinar con certeza su clase. Por último, se fue pasando el vector de características calculado al clasificador y comparando su respuesta con la fila correspondiente en el fichero .csv. 
 
 ![Imagen de test](https://github.com/Darknight99V/VC/blob/master/P3/MPs_test.jpg)
 
@@ -293,5 +290,6 @@ Para esta parte del proceso de desarrolló una función que realiza estos cálcu
 Como se puede observar, el clasificador determina con una precisión aceptable los fragmentos y los confunde, en todo caso, con el alquitrán, posiblemente debido a sus similitudes en cuanto a forma. A continuación, los pellets los detectaba sin éxito alguno y desconocemos la causa de este fenómeno. Con los fragmentos de alquitrán se puede observar un comportamiento similar a los fragmentos pero invertido, confundiendo el alquitrán por fragmentos. Esto, probablemente, se dé por sus características físicas entre ambos tipos. 
 
 Por último, cabe destacar que en dicha clasificación no figuran todos los objetos de la imagen, debido a que se necesita un mejor procesado de las imágenes particionadas para detectar con mayor precisión los objetos. 
+
 
 
