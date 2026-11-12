@@ -80,6 +80,7 @@ Antes de comenzar el entrenamiento, las imágenes se separaron en 3 conjuntos: t
 Además, también fue necesario para cumplir con el formato que requiere YOLO para el entrenamiento, convertir las anotaciones de formato JSON a TXT, lo que se hizo con un pequeño script. (Poner script) 
 
 (especificar mejor los parámetros de entrenamiento del YOLO: épocas, qué modelo se entrenó, LR...)
+(explicar también alguna gráfica relevante que tenga que ver con el desarrollo del entrenamiento, como la función de pérdida o la matriz de confusión)
 
 <br><br>
 
@@ -303,7 +304,7 @@ Finalmente, se utilizaron ambos modelos (el preentrenado con las clases seleccio
 (poner código)
 
 ### Generación del CSV y volcado del vídeo en memoria
-(poner código de generación  de CSV y decir que el volcado de memoria se hizo utilizando openCV, poner también gif del vídeo resultante)
+(poner código de generación  de CSV asi como enlace a este CSV y una captura a modo de preview y decir que el volcado de memoria se hizo utilizando openCV, poner también gif del vídeo resultante)
 
 ### Comparación entre YOLO y RT-DETR
 (modelos entrenados en ambos casos, qué parámetros del entrenamiento se dejaron iguales, poner que se hizo en google colab y especificarlo en el YOLO también, mostrar gráficas relevantes y explicarlas, etc)
