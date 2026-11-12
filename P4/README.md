@@ -19,7 +19,7 @@ La práctica consta de dos tareas principales. La primera requiere de los siguie
 
   Adicionalmente, realizamos los siguientes apartados opcionales:
   - Determinación del flujo de personas y vehículos en el vídeo de test en las distintas direcciones.
-  - Evaluación de alternativas para la detección de matrículas: una basada en YOLO y otra en RRT-DETR.
+  - Evaluación de alternativas para la detección de matrículas: una basada en YOLO y otra en RT-DETR.
 
 
 Para la Práctica 4b, se piden los siguientes apartados:
@@ -86,7 +86,7 @@ Además, también fue necesario para cumplir con el formato que requiere YOLO pa
 ### Conteo por clases y flujo de personas y vehículos
 
  Por otro lado, para el conteo total de cada clase y su flujo, se fue contando *frame* a *frame* los distintos objetos que detectaba el modelo de YOLO y se analizaba la clase y el ID de cada uno. 
- Se contaba con con el número de clase como clave y el nombre de la clase como valor, y un *set* que contenía los distintos IDs detectados para dicha clase y evitaba IDs duplicados para realizar el conteo.
+ Se contaba con con el número de clase como clave y el nombre de la clase como valor, y un *set* que contenía los distintos IDs detectados para dicha clase, y evitaba IDs duplicados, para realizar el conteo.
 
  Estas son las estructuras en las que se apoyó el conteo
  ```python
@@ -298,9 +298,18 @@ print(ru)
 print(rd)
 ```
 
-### Generación del CSV y volcado del vídeo en memoria
+Finalmente, se utilizaron ambos modelos (el preentrenado con las clases seleccionadas y el que se entrenó con matrículas) sobre el vídeo de prueba proporcionado por el profesorado. El código también integra el conteo por clases y el flujo de personas y vehículos anteriormente expuestos.
 
-## Tarea 2
+(poner código)
+
+### Generación del CSV y volcado del vídeo en memoria
+(poner código de generación  de CSV y decir que el volcado de memoria se hizo utilizando openCV, poner también gif del vídeo resultante)
+
+### Comparación entre YOLO y RT-DETR
+(modelos entrenados en ambos casos, qué parámetros del entrenamiento se dejaron iguales, poner que se hizo en google colab y especificarlo en el YOLO también, mostrar gráficas relevantes y explicarlas, etc)
+
+
+## Tarea 2 (Práctica 4b)
 
  A la hora de completar esta tarea, para comparar ambos modelos de OCR, usamos un pequeño conjunto de X imágenes para una comparativa con datos significativos. 
 
