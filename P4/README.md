@@ -1,4 +1,4 @@
-# Práctica 4 de Visión por Computador
+# Práctica 4 y Práctica 4b de Visión por Computador
 
 ## Componentes del grupo:
 
@@ -17,11 +17,12 @@ La práctica consta de dos tareas principales. La primera requiere de los siguie
 - Volcado en disco de un vídeo que muestre los resultados.
 - Generación de un archivo CSV con el resultado de la detección y seguimiento, con al menos los siguientes campos: fotograma, tipo_objeto, confianza, identificador_tracking, x1, y1, x2, y2, matrícula_en_su_caso, confianza, mx1,my1,mx2,my2, texto_matricula
 
-  Adicionalmente, realizamos los apartados opcionales:
+  Adicionalmente, realizamos los siguientes apartados opcionales:
   - Determinación del flujo de personas y vehículos en el vídeo de test en las distintas direcciones.
   - Evaluación de alternativas para la detección de matrículas: una basada en YOLO y otra en RRT-DETR.
 
-  Para la segunda tarea, se piden los siguientes apartados:
+
+Para la Práctica 4b, se piden los siguientes apartados:
   - Completar el CSV con la adquisición de texto de cada matrícula detectada.
   - Realizar una comparativa entre dos OCR, uno clásico y un VLM, en términos de tiempo de inferencia y tasa de acierto.
 
@@ -29,25 +30,90 @@ La práctica consta de dos tareas principales. La primera requiere de los siguie
 
  ## Tarea 1
 
- Para la resolución de esta tarea, cogimos el vídeo de ejemplo y usamos el modelo pre entrenado de YOLO para detectar y hacer seguimiento de las personas y vehículos hemos usado el *track()* que incluye YOLO. Las clases que se han usado para detectar y seguir han sido las siguientes, respectivamente: *"person", "bicycle", "car", "motorbike", "bus" y "truck"*.
+### Detección y seguimiento de personas y vehículos
+
+Para la resolución se esta tarea, simplemente se usó el modelo preentrenado de YOLO (concretamente: yolo11n.pt). En su uso se especificaron las clases que se iban a detectar y además se usó la función de *track()* al ejecutar el modelo para poder hacer el seguimiento. Las clases utilizadas fueron las siguientes: *"person", "bicycle", "car", "motorbike", "bus" y "truck"*. A continuación se muestra cómo se usó el modelo:
 
 ```python
 model.track(frame, persist=True, classes=[0,1,2,3,5,7], verbose=False)
 ```
 
- Los resultados de estas detecciones se verán en el vídeo final que contiene todas las anotaciones.
- 
- Para la parte de detección de matrículas, el alumnado de VC de la ULPGC se coordinó para generar un pequeño [dataset](https://drive.google.com/drive/folders/1RFd6sKH_QMQcpE_w5rWmy8rKiYUY5_SI?usp=sharing) de ~2k imágenes en formato JPG con anotaciones en formato JSON de matrículas de vehículos. 
- 
- Las anotaciones poseen el texto de la matrícula y el *bounding box* de cada una de las matrículas mayoritariamente legibles o reconocibles en cada imagen. Si una matrícula era reconocible pero su contenido no se legible, ya fuera por estar parcialmente tapada por otro objeto o estar muy lejos, entre otros, el valor de la matrícula se ponía a None. Todas estas imágenes se encuentran en una sola carpeta llamada *images* y las anotaciones en la carpeta *annotations*.
- 
- Es por ello que separamos las imágenes en 3 conjuntos: train, test y val. El porcentaje de imágenes que posee cada carpeta con respecto al total de imágenes que tiene el dataset, respectivamente, es el siguiente: 64%, 20% y 16%.
+Los resultados de estas detecciones se verán en el vídeo final que contiene todas las anotaciones de la práctica.
 
- También, con un pequeño script, pasamos las anotaciones en formato JSON a TXT con formato YOLO. Este formato es el siguiente: clase x_centro y_centro ancho alto. 
+<br><br>
 
- Por otro lado, para el conteo total de cada clase y su flujo, fuimos contando *frame* a *frame* los distintos objetos que detectaba el modelo de YOLO y analizábamos la clase y el ID de cada uno. Con un diccionario con las clases como llave y un *set* que contenía los distintos IDs detectados para dicha clase, fuimos capaces de hacer un conteo. 
+### Detección de matrículas
+
+Para poder detectar matrículas, se propone en la práctica el entrenamiento de un modelo de YOLO. Para la obtención del dataset se dan varias opciones, pero finalmente el alumnado de la asignatura se ha coordinado para generar un pequeño [dataset](https://drive.google.com/drive/folders/1RFd6sKH_QMQcpE_w5rWmy8rKiYUY5_SI?usp=sharing) de alrededor de 2000 imágenes de matrículas. Dichas imágenes se encuentran en formato JPG en la carpeta *images* y sus respectivas anotaciones en la carpeta *annotations*.
+
+Las anotaciones se realizaron utilizando un script de python ([script](https://drive.google.com/file/d/1Y8OJj8H2FHFxNMdYG62AEV5gN6-EbCAU/view?usp=drive_link)) desarrollado por uno de los compañeros. Estas anotaciones siguen la notación de YOLO normalizada y se guardaron en formato JSON:
+
+```json
+[
+  {
+    "rectangle": [
+      0.6841878172588833,
+      0.501269035532995,
+      0.05208121827411161,
+      0.02314720812182741
+    ],
+    "plate": "2221FXK"
+  },
+  {
+    "rectangle": [
+      0.4100761421319797,
+      0.47446700507614215,
+      0.02893401015228425,
+      0.017461928934010162
+    ],
+    "plate": "None"
+  }
+]
+```
  
- Asimismo, para determinar el flujo, debido a que los objetos en el vídeo se encontraban en movimiento, se hizo una aproximación teniendo en cuenta su primera y última posición detectada. Dependiendo de la trayectoria del objeto, se determinaba por cual de los 4 cuadrantes de la imagen había "salido" el objeto.
+ Como se puede observarm, las anotaciones poseen el texto de la matrícula y el *bounding box* de cada una de las matrículas mayoritariamente legibles o reconocibles en cada imagen. Si una matrícula era reconocible pero su contenido no se legible, ya fuera por estar parcialmente tapada por otro objeto o estar muy lejos, el valor de la matrícula se ponía a *None*.
+
+<br><br>
+
+Antes de comenzar el entrenamiento, las imágenes se separaron en 3 conjuntos: train, test y val. El porcentaje de imágenes que posee cada carpeta con respecto al total de imágenes que tiene el dataset, respectivamente, es el siguiente: 64%, 20% y 16%.
+
+Además, también fue necesario para cumplir con el formato que requiere YOLO para el entrenamiento, convertir las anotaciones de formato JSON a TXT, lo que se hizo con un pequeño script. (Poner script) 
+
+(especificar mejor los parámetros de entrenamiento del YOLO: épocas, qué modelo se entrenó, LR...)
+
+<br><br>
+
+### Conteo por clases y flujo de personas y vehículos
+
+ Por otro lado, para el conteo total de cada clase y su flujo, se fue contando *frame* a *frame* los distintos objetos que detectaba el modelo de YOLO y se analizaba la clase y el ID de cada uno. 
+ Se contaba con con el número de clase como clave y el nombre de la clase como valor, y un *set* que contenía los distintos IDs detectados para dicha clase y evitaba IDs duplicados para realizar el conteo.
+
+ Estas son las estructuras en las que se apoyó el conteo
+ ```python
+classCounter = {"person": 0, "bicycle": 0, "car": 0, "motorbike": 0, "bus": 0, "truck": 0}
+classNames = {0: "person", 1: "bicycle", 2: "car", 3: "motorbike", 5: "bus", 7: "truck"}
+uniqueObjects = {nombre: set() for nombre in classNames.values()}
+```
+
+En este fragmento del código se recorren los resultados obtenidos después de ejecutar el modelo en el frame actual para realizar el conteo.
+```python
+        for result in results:
+            for box in result.boxes:
+                clase = int(box.cls.item())
+
+                if clase not in classNames:
+                    continue
+
+                nombre = classNames[clase]
+                classCounter[nombre] += 1
+
+                if box.id is not None:
+                    id_objeto = int(box.id.item())
+                    uniqueObjects[nombre].add(id_objeto)
+```
+
+
+ Asimismo, para determinar el flujo, debido a que los objetos en el vídeo se encontraban en movimiento, se hizo una aproximación teniendo en cuenta su primera y última posición detectada. Dependiendo de la trayectoria del objeto, se determinaba por cual de los 4 cuadrantes de la imagen había "salido" el objeto. (Explicar mejor relacionando con el código y las estructuras relacionadas)
 
 ```python
 class Tracked_Object:
@@ -86,23 +152,10 @@ class Image_Section:
         for key, count in self.detections.items():
             string += f"- {self.class_names.get(key, f'clase_{key}')} : {count}\n"
         return string
+```
 
-def compute_iou(box1, box2):
-    # Calcula el Intersection over Union entre dos cajas [x1, y1, x2, y2]
-    x1 = max(box1[0], box2[0])
-    y1 = max(box1[1], box2[1])
-    x2 = min(box1[2], box2[2])
-    y2 = min(box1[3], box2[3])
-    
-    inter_area = max(0, x2 - x1) * max(0, y2 - y1)
-    box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
-    box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
-    
-    union_area = box1_area + box2_area - inter_area
-    if union_area == 0:
-        return 0
-    return inter_area / union_area
-
+(de este cacho de código si quieres quédate con lo que solo tiene que ver con lo del tracking y ya después al final se pone entero y ya verá el contexto y tal)
+```python
 #video
 filename = "coches.MP4"
 ANCHO_MAX = 1280
@@ -195,7 +248,7 @@ while(True):
             -1
         )
 
-        # Dibujar cada lÃnea
+        # Dibujar cada linea
         for i, texto in enumerate(objetos):
 
             x = x_panel + 10
@@ -245,7 +298,7 @@ print(ru)
 print(rd)
 ```
 
-Por último, con el modelo de YOLO entrenado para detectar matrículas, usábamos éste junto con el modelo pre entrenado para hacer la detección tanto de los vehículos y personas como de las matrículas. Y a su vez, se volcaron estos contenidos en un CSV y en un vídeo para mostrar los resultados. 
+### Generación del CSV y volcado del vídeo en memoria
 
 ## Tarea 2
 
