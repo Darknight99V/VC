@@ -71,13 +71,153 @@ Las anotaciones se realizaron utilizando un script de python ([script](https://d
 ]
 ```
  
- Como se puede observarm, las anotaciones poseen el texto de la matrícula y el *bounding box* de cada una de las matrículas mayoritariamente legibles o reconocibles en cada imagen. Si una matrícula era reconocible pero su contenido no se legible, ya fuera por estar parcialmente tapada por otro objeto o estar muy lejos, el valor de la matrícula se ponía a *None*.
+ Como se puede observar, las anotaciones poseen el texto de la matrícula y el *bounding box* de cada una de las matrículas mayoritariamente legibles o reconocibles en cada imagen. Si una matrícula era reconocible pero su contenido no se legible, ya fuera por estar parcialmente tapada por otro objeto o estar muy lejos, el valor de la matrícula se ponía a *None*.
 
 <br><br>
 
 Antes de comenzar el entrenamiento, las imágenes se separaron en 3 conjuntos: train, test y val. El porcentaje de imágenes que posee cada carpeta con respecto al total de imágenes que tiene el dataset, respectivamente, es el siguiente: 64%, 20% y 16%.
 
-Además, también fue necesario para cumplir con el formato que requiere YOLO para el entrenamiento, convertir las anotaciones de formato JSON a TXT, lo que se hizo con un pequeño script. (Poner script) 
+Además, también fue necesario para cumplir con el formato que requiere YOLO para el entrenamiento, convertir las anotaciones de formato JSON a TXT, lo que se hizo con un pequeño script. Además, se adaptó para ser compatible con el formato requerido para RT-DETR.
+
+```python
+"""
+Conversión JSON (YOLO normalizado) -> COCO + YOLO txt, con letterbox opcional.
+Genera UN solo dataset de imágenes que usan ambos modelos (mismos píxeles):
+
+OUT/
+  train/images/*.jpg   train/labels/*.txt     <- YOLO (Ultralytics)
+  val/...              test/...
+  annotations/instances_{train,val,test}.json <- COCO (RT-DETR)
+"""
+import json
+from pathlib import Path
+from PIL import Image, ImageFile, ImageOps
+
+Image.MAX_IMAGE_PIXELS = None          # permite abrir las imágenes gigantes
+
+ROOT = Path('/content/data_raw/Datos_P4_split')
+OUT  = Path('/content/dataset_coco')
+IMG_EXT = {'.jpg', '.jpeg', '.png'}
+
+MODE = 'letterbox'     # 'letterbox' (SIZE x SIZE con padding) | 'maxside' (solo reduce)
+SIZE = 640
+MAX_SIDE = 1920     
+PAD_COLOR = (114, 114, 114)
+JPEG_QUALITY = 95
+
+truncadas = []
+
+
+def procesar_imagen(src, dst):
+    """Guarda la imagen procesada. Devuelve (W, H, w0, h0, s, px, py):
+    tamaño final, tamaño original, escala y padding aplicados."""
+    ImageFile.LOAD_TRUNCATED_IMAGES = False
+    try:
+        im = Image.open(src); im.load()
+    except OSError:
+        truncadas.append(src.name)
+        ImageFile.LOAD_TRUNCATED_IMAGES = True
+        im = Image.open(src); im.load()
+        ImageFile.LOAD_TRUNCATED_IMAGES = False
+
+    im = ImageOps.exif_transpose(im).convert('RGB')
+    w0, h0 = im.size
+
+    if MODE == 'letterbox':
+        s = min(SIZE / w0, SIZE / h0)
+        nw, nh = max(1, round(w0 * s)), max(1, round(h0 * s))
+        im = im.resize((nw, nh), Image.LANCZOS)
+        canvas = Image.new('RGB', (SIZE, SIZE), PAD_COLOR)
+        px, py = (SIZE - nw) // 2, (SIZE - nh) // 2
+        canvas.paste(im, (px, py))
+        im, W, H = canvas, SIZE, SIZE
+    else:
+        s = min(1.0, MAX_SIDE / max(w0, h0))
+        if s < 1.0:
+            im = im.resize((round(w0 * s), round(h0 * s)), Image.LANCZOS)
+        px = py = 0
+        W, H = im.size
+
+    im.save(dst, quality=JPEG_QUALITY)
+    return W, H, w0, h0, s, px, py
+
+
+def leer_anotaciones(lbl):
+    """Devuelve lista de objetos o None si falta / es inválido."""
+    if not lbl.exists():
+        print(f'Sin JSON de anotaciones, se omite la imagen: {lbl.name}')
+        return None
+    try:
+        with open(lbl) as f:
+            return json.load(f)
+    except json.JSONDecodeError as e:
+        print(f'JSON inválido, se omite la imagen: {lbl.name} ({e})')
+        return None
+
+
+def build_split(name):
+    img_src = ROOT / name / 'images'
+    ann_src = ROOT / name / 'annotations'
+    img_dst = OUT / name / 'images'
+    lbl_dst = OUT / name / 'labels'
+    (OUT / 'annotations').mkdir(parents=True, exist_ok=True)
+    img_dst.mkdir(parents=True, exist_ok=True)
+    lbl_dst.mkdir(parents=True, exist_ok=True)
+
+    files = sorted(p for p in img_src.iterdir() if p.suffix.lower() in IMG_EXT)
+    coco = {'images': [], 'annotations': [],
+            'categories': [{'id': 0, 'name': 'plate'}]}
+    img_id, ann_id = 0, 1
+    omitidas = vacias = 0
+
+    for p in files:
+        objs = leer_anotaciones(ann_src / (p.stem + '.json'))
+        if objs is None:              
+            omitidas += 1
+            continue
+
+        img_id += 1
+        out_name = p.stem + '.jpg'
+        W, H, w0, h0, s, px, py = procesar_imagen(p, img_dst / out_name)
+        coco['images'].append({'id': img_id, 'file_name': out_name,
+                               'width': W, 'height': H})
+        yolo_lines = []
+
+        for obj in objs:
+            xc, yc, w, h = obj['rectangle']       
+            x1, y1 = max(0, (xc - w / 2) * w0), max(0, (yc - h / 2) * h0)
+            x2, y2 = min(w0, (xc + w / 2) * w0), min(h0, (yc + h / 2) * h0)
+            # a coordenadas de la imagen final (escala + padding)
+            x1, x2 = x1 * s + px, x2 * s + px
+            y1, y2 = y1 * s + py, y2 * s + py
+            bw, bh = x2 - x1, y2 - y1
+            if bw <= 1 or bh <= 1:
+                continue
+            coco['annotations'].append({
+                'id': ann_id, 'image_id': img_id, 'category_id': 0,
+                'bbox': [round(x1, 2), round(y1, 2), round(bw, 2), round(bh, 2)],
+                'area': round(bw * bh, 2), 'iscrowd': 0})
+            ann_id += 1
+            yolo_lines.append(f'0 {(x1 + bw / 2) / W:.6f} {(y1 + bh / 2) / H:.6f} '
+                              f'{bw / W:.6f} {bh / H:.6f}')
+
+        if not yolo_lines:
+            vacias += 1
+        (lbl_dst / (p.stem + '.txt')).write_text('\n'.join(yolo_lines))
+
+    with open(OUT / 'annotations' / f'instances_{name}.json', 'w') as f:
+        json.dump(coco, f)
+    print(f'{name}: {len(coco["images"])} imágenes, {len(coco["annotations"])} cajas, '
+          f'{omitidas} omitidas (sin/!JSON), {vacias} sin ninguna caja')
+
+
+if __name__ == '__main__':
+    for s in ['train', 'val', 'test']:
+        build_split(s)
+    print(len(truncadas), 'imágenes truncadas')
+    for n in truncadas:
+        print(n)
+```
 
 Los parámetros usados para el entrenamiento del YOLO son los siguientes:
 
@@ -99,11 +239,13 @@ Se usaron dichos hiperparámetros por varias razones:
 3. Evitar el fenómeno *overfiting*.
 4. Evitar el *early-stopping*.
 
-Se eligieron 100 épocas debido a que los archivos de configuración oficiales usan 70-120 épocas. Por eso, se decidió usar un valor intermedio de 100 para poder hacer un *fine-tunning* aceptable y evitar que el modelo aprendiese de "memoria" el conjunto de entrenamiento. Las gráficas obtenidas de este entrenamiento son las siguientes:
+Se eligieron 100 épocas debido a que los archivos de configuración oficiales usan 70-120 épocas. Por eso, se decidió usar un valor intermedio de 100 para poder hacer un *fine-tunning* aceptable y evitar que el modelo aprendiese de "memoria" el conjunto de entrenamiento. Se usaron 3 épocas de warmup para estabilizar los gradientes al inicio del entrenamiento, evitando que el optimizador AdamW diverja con el learning rate inicial. Las gráficas obtenidas de este entrenamiento son las siguientes:
 
 **Matriz de confusión (YOLO)**:
 
 ![Confusion_matrix](https://github.com/Darknight99V/VC/blob/61645974ecf75e6e574b5cc83d9029331ca10b67/P4/yolo_training_graphs/confusion_matrix.png)
+
+Aunque el modelo confunde muchas matrículas con el resto de la imagen, se tiene la hipótesis de que ésto es debido a que la métrica es altamente restrictiva y aquellos *bounding boxes* que no se ajusten dentro del rango de mAP50-95.
 
 **Resultados (YOLO)**:
 
