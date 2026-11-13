@@ -96,9 +96,20 @@ Los parámetros usados para el entrenamiento del YOLO son los siguientes:
 Se usaron dichos hiperparámetros por varias razones:
 1. Comparativa justa entre YOLO y RT-DETR.
 2. Poder detectar matrículas situadas en la lejanía sin tener un nivel de detalle significativo que pudiese realentizar el entrenamiento.
-3. Evitar el fenómeno *overfiting*. 
+3. Evitar el fenómeno *overfiting*.
+4. Evitar el *early-stopping*.
 
-(explicar también alguna gráfica relevante que tenga que ver con el desarrollo del entrenamiento, como la función de pérdida o la matriz de confusión)
+Se eligieron 100 épocas debido a que los archivos de configuración oficiales usan 70-120 épocas. Por eso, se decidió usar un valor intermedio de 100 para poder hacer un *fine-tunning* aceptable y evitar que el modelo aprendiese de "memoria" el conjunto de entrenamiento. Las gráficas obtenidas de este entrenamiento son las siguientes:
+
+**Matriz de confusión (YOLO)**:
+
+![Confusion_matrix](https://github.com/Darknight99V/VC/blob/61645974ecf75e6e574b5cc83d9029331ca10b67/P4/yolo_training_graphs/confusion_matrix.png)
+
+**Resultados (YOLO)**:
+
+![Resultados_generales](https://github.com/Darknight99V/VC/blob/61645974ecf75e6e574b5cc83d9029331ca10b67/P4/yolo_training_graphs/results.png)
+
+Los resultados obtenidos demuestran una convergencia estable, con funciones de pérdida (box, cls y dfl) que disminuyen sin evidencia de sobreajuste significativo. Se puede apreciar que se alcanza una precisión del 90% y un *recall* de 70%. El mAP50 demuestra que, aunque no es capaz de delinear correctamente la matrícula, demostrado con el mAP50-95, si es capaz de ubicarla con bastante precisión. Esto puede ser debido no solo a características o fenómenos del entrenamiento si no de un fallo humano en las anotaciones que impide al modelo aprender mejor.
 
 <br><br>
 
@@ -131,8 +142,7 @@ En este fragmento del código se recorren los resultados obtenidos después de e
                     uniqueObjects[nombre].add(id_objeto)
 ```
 
-
- Asimismo, para determinar el flujo, debido a que los objetos en el vídeo se encontraban en movimiento, se hizo una aproximación teniendo en cuenta su primera y última posición detectada. Dependiendo de la trayectoria del objeto, se determinaba por cual de los 4 cuadrantes de la imagen había "salido" el objeto. (Explicar mejor relacionando con el código y las estructuras relacionadas)
+Asimismo, para determinar el flujo de los objetos detectados y seguidos, se crearon dos objetos. El primero se usa para almacenar las coordenadas por las que ha ido pasando un objeto detectado por YOLO y poder calcular la predicción de su trayectoria, teniendo en cuenta su punto inicial y final. Luego, se utiliza un segundo objeto (*Image_Section*) para representar los cuadrantes de la imagen. Cada uno almacena una cuenta de los distintos objetos y sobreescribe el método "*__str__*" para poder mostrar de forma eficiente y clara los objetos que han "salido" de la imagen por esa sección.
 
 ```python
 class Tracked_Object:
@@ -173,7 +183,63 @@ class Image_Section:
         return string
 ```
 
-(de este cacho de código si quieres quédate con lo que solo tiene que ver con lo del tracking y ya después al final se pone entero y ya verá el contexto y tal)
+Los objetos descritos anteriormente se usan en el código de la siguiente manera: se recorren los resultados obtenidos por YOLO y se adquieren los IDs, *bounding boxes* en formato COCO y el tipo. Con estos datos, se crea un objeto en caso de no existir con dicho ID y se añaden las nuevas coordenadas al objeto. Más adelante, una vez termina el vídeo, se crean las 4 secciones de la imagen y por cada uno de los objetos creados, se calcula su trayectoria y se encaja en la sección correspondiente. Por último, se muestran los resultados de las predicciones. 
+
+```python
+  #video
+  filename = "coches.MP4"
+  
+  #carga de los modelos
+  model = YOLO('yolo11n.pt')
+  last_known_position = {} 
+  objects = {} # clave-par id:obj
+  coches = cv2.VideoCapture(filename)
+  
+  while(True):
+      if not ret:
+          break
+      
+      results = model.track(frame, persist=True, classes=[0,1,2,3,5,7], verbose=False)
+      frame = results[0].plot()
+  
+      #recorrer resultados
+      for result in results:
+          ids = result.boxes.id.int().cpu().tolist()
+          boxes_xywh = result.boxes.xywh.cpu().tolist()
+          types = result.boxes.cls.int().cpu().tolist()
+  
+          for id, coords, type in zip(ids, boxes_xywh, types):
+              if id not in objects:
+                  objects[id] = Tracked_Object(id, type)
+              objects[id].add_point(coords)
+
+  lu = Image_Section("arriba izquierda")
+  ld = Image_Section("abajo izquierda")
+  ru = Image_Section("arriba derecha")
+  rd = Image_Section("abajo derecha")
+  
+  for id in objects.keys():
+      obj = objects[id]
+      obj.calculate_trayectory()
+  
+      if obj.trayectory_x < 0 and obj.trayectory_y < 0:
+          ld.add_obj(obj)
+      elif obj.trayectory_x < 0 and obj.trayectory_y > 0:
+          lu.add_obj(obj)
+      elif obj.trayectory_x > 0 and obj.trayectory_y > 0:
+          ru.add_obj(obj)
+      else:
+          rd.add_obj(obj)
+  
+  print(objects)
+  
+  print(lu)
+  print(ld)
+  print(ru)
+  print(rd)
+```
+
+
 ```python
 #video
 filename = "coches.MP4"
@@ -187,7 +253,6 @@ uniqueObjects = {nombre: set() for nombre in classNames.values()}
 #carga de los modelos
 model = YOLO('yolo11n.pt')
 last_known_position = {} 
-objects = {} # clave-par id:obj
 coches = cv2.VideoCapture(filename)
 
 while(True):
@@ -220,15 +285,6 @@ while(True):
                 if box.id is not None:
                     id_objeto = int(box.id.item())
                     uniqueObjects[nombre].add(id_objeto)
-            
-            ids = result.boxes.id.int().cpu().tolist()
-            boxes_xywh = result.boxes.xywh.cpu().tolist()
-            types = result.boxes.cls.int().cpu().tolist()
-
-            for id, coords, type in zip(ids, boxes_xywh, types):
-                if id not in objects:
-                    objects[id] = Tracked_Object(id, type)
-                objects[id].add_point(coords)
 
             #Dibujar contador
         objetos = []
@@ -290,36 +346,13 @@ while(True):
         break
 
 coches.release()
-
-lu = Image_Section("arriba izquierda")
-ld = Image_Section("abajo izquierda")
-ru = Image_Section("arriba derecha")
-rd = Image_Section("abajo derecha")
-
-for id in objects.keys():
-    obj = objects[id]
-    obj.calculate_trayectory()
-
-    if obj.trayectory_x < 0 and obj.trayectory_y < 0:
-        ld.add_obj(obj)
-    elif obj.trayectory_x < 0 and obj.trayectory_y > 0:
-        lu.add_obj(obj)
-    elif obj.trayectory_x > 0 and obj.trayectory_y > 0:
-        ru.add_obj(obj)
-    else:
-        rd.add_obj(obj)
-
-print(objects)
-
-print(lu)
-print(ld)
-print(ru)
-print(rd)
 ```
 
 Finalmente, se utilizaron ambos modelos (el preentrenado con las clases seleccionadas y el que se entrenó con matrículas) sobre el vídeo de prueba proporcionado por el profesorado. El código también integra el conteo por clases y el flujo de personas y vehículos anteriormente expuestos.
 
-(poner código)
+```python
+
+```
 
 ### Generación del CSV y volcado del vídeo en memoria
 (poner código de generación  de CSV asi como enlace a este CSV y una captura a modo de preview y decir que el volcado de memoria se hizo utilizando openCV, poner también gif del vídeo resultante)
@@ -330,13 +363,180 @@ Finalmente, se utilizaron ambos modelos (el preentrenado con las clases seleccio
 
 ## Tarea 2 (Práctica 4b)
 
- A la hora de completar esta tarea, para comparar ambos modelos de OCR, usamos un pequeño conjunto de X imágenes para una comparativa con datos significativos. 
+ A la hora de completar esta tarea, se empezó seleccionando los OCR que se iban a comparar. El modelo clásico elegido fue PaddleOCR, debido a su modernidad y rendimiento en comparación a los otros OCR que se expusieron en el enunciado. Por otro lado, el modelo VML usado fue SmolVML, debido a su facilidad de uso y buen rendimiento en ámbitos generales, además de por su ligereza. Los resultado obtenidos con PaddleOCR en el vídeo se pueden observar tanto en el mismo vídeo como en el fichero CSV, analizando la última columna. 
 
- Por parte del OCR clásico, se obtuvieron los siguientes resultados:
+### Comparativa de PaddleOCR y SmolOCR
 
+ Para la comparativa, se creó un script que selecciona un número X de imágenes del subconjunto de datos de test y sus correspondientes JSON. Tras esto, recorta las secciones donde se encuentran las matrículas anotadas en los JSON. Luego, se procede a intentar extraer el texto del recorte y se mide tanto su precisión exacta como parcial como su tiempo de inferencia (latencia). Con precisión parcial se intenta medir qué tan bueno es el modelo detectando al menos un carácter de la matrícula correctamente. 
 
- Por parte del OCR VLM, se obtuvieron los siguientes resultados:
+ ```python
+# ============ PaddleOCR ============
+print('\n[1/2] Ejecutando PaddleOCR...')
+ocr = PaddleOCR(lang='es', use_textline_orientation=False, enable_mkldnn=False)
 
- Como se puede observar, el OCR clásico destaca por su .... Por otro lado, el OCR VLM destaca por .... 
+resultados_paddle = []
+for i, (img_name, gt, crop) in enumerate(recortes):
+    t0 = time.perf_counter()
+    try:
+        res = ocr.predict(np.array(crop))
+        pred = ''
+        if res:
+            r0 = res[0]
+            textos = r0.get('rec_texts', []) if isinstance(r0, dict) else getattr(r0, 'rec_texts', [])
+            if textos:
+                pred = str(textos[0]).strip().upper()
+    except Exception as e:
+        print(f'  PaddleOCR error en {img_name}: {e}')
+        pred = ''
+    t1 = time.perf_counter()
+    resultados_paddle.append({'gt': gt, 'pred': pred, 'time': t1 - t0})
+    if (i+1) % 50 == 0:
+        print(f'  PaddleOCR: {i+1}/{len(recortes)}')
+
+print(f'Resultados PaddleOCR recogidos: {len(resultados_paddle)}')
+
+# ============ SmolVLM local ============
+print('\n[2/2] Ejecutando SmolVLM local...')
+resultados_smolvlm = []
+
+try:
+    from transformers import AutoProcessor, AutoModelForVision2Seq
+    from transformers.image_utils import load_image
+
+    model_name = "HuggingFaceTB/SmolVLM-256M-Instruct"
+    print("Cargando SmolVLM (modelo ligero, debería ser rápido)...")
+    
+    processor = AutoProcessor.from_pretrained(model_name)
+    model = AutoModelForVision2Seq.from_pretrained(
+        model_name,
+        torch_dtype=torch.bfloat16,
+        device_map="auto"
+    ).eval()
+
+    def call_smolvlm(crop, model, processor):
+        # Guardar el recorte temporalmente o pasarlo directamente como PIL Image
+        # SmolVLM acepta PIL Image directamente en el processor
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image"},
+                    {"type": "text", "text": "What is the license plate number in this image? Answer only the plate characters, no extra text."}
+                ]
+            }
+        ]
+        
+        t0 = time.perf_counter()
+        try:
+            # Aplicar plantilla de chat
+            prompt = processor.apply_chat_template(messages, add_generation_prompt=True)
+            
+            # Preparar inputs: pasamos la imagen PIL directamente
+            inputs = processor(text=prompt, images=[crop], return_tensors="pt")
+            inputs = inputs.to(model.device)
+            
+            # Generar
+            generated_ids = model.generate(**inputs, max_new_tokens=30)
+            
+            # Decodificar solo la parte generada (no el prompt)
+            generated_text = processor.batch_decode(
+                generated_ids[:, inputs["input_ids"].shape[1]:],
+                skip_special_tokens=True
+            )[0]
+            
+            # Limpiar: mayúsculas, solo letras/números/guiones
+            pred_clean = re.sub(r'[^A-Z0-9\-]', '', generated_text.strip().upper())
+        except Exception as e:
+            print(f"Error en inferencia SmolVLM: {e}")
+            pred_clean = ''
+        t1 = time.perf_counter()
+        
+        return pred_clean, t1 - t0
+
+    for i, (img_name, gt, crop) in enumerate(recortes):
+        pred, dt = call_smolvlm(crop, model, processor)
+        resultados_smolvlm.append({'gt': gt, 'pred': pred, 'time': dt})
+        if (i+1) % 10 == 0:
+            print(f'  SmolVLM: {i+1}/{len(recortes)}')
+            torch.cuda.empty_cache()
+
+except Exception as e:
+    print(f"\nNo se pudo cargar/ejecutar SmolVLM: {e}")
+    print("Se continuará solo con los resultados de PaddleOCR.")
+
+# ============ Métricas ============
+def exact_match(gt, pred):
+    return int(gt == pred)
+
+def char_accuracy(gt, pred):
+    return SequenceMatcher(None, gt, pred).ratio()
+
+def resumen(nombre, res):
+    if not res:
+        print(f'\n{nombre}: lista vacía, nada que calcular')
+        return {'em': 0.0, 'ca': 0.0, 't_med': 0.0, 't_p95': 0.0}
+    em = np.mean([exact_match(r['gt'], r['pred']) for r in res])
+    ca = np.mean([char_accuracy(r['gt'], r['pred']) for r in res])
+    t_med = np.median([r['time'] for r in res])
+    t_p95 = np.percentile([r['time'] for r in res], 95)
+    print(f'\n{nombre}:')
+    print(f'  Exact Match: {em:.3f} ({em*100:.1f}%)')
+    print(f'  Char Accuracy: {ca:.3f} ({ca*100:.1f}%)')
+    print(f'  Latencia mediana: {t_med*1000:.1f} ms')
+    print(f'  Latencia P95: {t_p95*1000:.1f} ms')
+    return {'em': em, 'ca': ca, 't_med': t_med, 't_p95': t_p95}
+
+r_paddle = resumen('PaddleOCR', resultados_paddle)
+r_smolvlm = resumen('SmolVLM (Local)', resultados_smolvlm)
+
+# Guardar resultados
+with open(OUT_DIR / 'comparativa_ocr.pkl', 'wb') as f:
+    pickle.dump({'paddle': resultados_paddle, 'smolvlm': resultados_smolvlm}, f)
+
+# ============ Gráficas ============
+fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+
+# Exact Match
+axes[0].bar(['PaddleOCR', 'SmolVLM'], [r_paddle['em'], r_smolvlm['em']], color=['#2E86AB', '#A23B72'])
+axes[0].set_title('Exact Match')
+axes[0].set_ylim(0, 1.1)
+for i, v in enumerate([r_paddle['em'], r_smolvlm['em']]):
+    axes[0].text(i, v + 0.02, f'{v:.1%}', ha='center')
+
+# Char Accuracy
+axes[1].bar(['PaddleOCR', 'SmolVLM'], [r_paddle['ca'], r_smolvlm['ca']], color=['#2E86AB', '#A23B72'])
+axes[1].set_title('Character Accuracy')
+axes[1].set_ylim(0, 1.1)
+for i, v in enumerate([r_paddle['ca'], r_smolvlm['ca']]):
+    axes[1].text(i, v + 0.02, f'{v:.1%}', ha='center')
+
+# Latencia mediana
+t_paddle_ms = r_paddle['t_med'] * 1000
+t_smolvlm_ms = r_smolvlm['t_med'] * 1000
+axes[2].bar(['PaddleOCR', 'SmolVLM'], [t_paddle_ms, t_smolvlm_ms], color=['#2E86AB', '#A23B72'])
+axes[2].set_title('Latencia mediana (ms)')
+axes[2].set_ylabel('ms')
+max_t = max(t_paddle_ms, t_smolvlm_ms)
+if max_t > 0:
+    axes[2].set_ylim(0, max_t * 1.2)
+for i, v in enumerate([t_paddle_ms, t_smolvlm_ms]):
+    axes[2].text(i, v + (max_t*0.02), f'{v:.0f} ms', ha='center')
+
+plt.tight_layout()
+plt.savefig(OUT_DIR / 'comparativa_ocr.png', dpi=150)
+plt.show()
+```
+
+ Dichos resultados se pueden ver en la siguiente gráfica:
+
+ ![Comparacion_OCRs](https://github.com/Darknight99V/VC/blob/ffa1bf92192a0b730e16e474b2f6a24b020b3a5b/P4/OCRs_comparation.png)
+
+ Como se puede apreciar, SmolVML supera a PaddleOCR en todos los ámbitos, siendo la detección de la matrícula entera donde más sobrepasa a PaddleOCR con un 17.4% más de precisión. Cabe resaltar que esta métrica es altamente restrictiva. Sin embargo, las otras métricas demuestran que PaddleOCR no es mucho peor en términos de rendimiento y detección. Es posible que PaddleOCR sea más ligero si se usase otro modelo VML, como Unlimited-COR de Baidu. Adicionalmente, las métricas  se encuentran en el [archivo PKL](https://github.com/Darknight99V/VC/blob/4da0be1c451cfc951ec671fa4ba82b034169bee7/P4/comparativa_ocr.pkl).
+
+ Para una comparación justa en latencia, se desactivaron optimizaciones como MKL-DNN y la orientación de línea de texto en PaddleOCR, asumiendo que las matrículas ya están recortadas y alineadas.
+
+## Especificaciones hardware
+
+ Las métricas en todos los apartados fueron sacadas de una máquina con GPU T4 en un Google Colab. 
 
   
