@@ -527,6 +527,8 @@ Estas rutas a su vez se encuentran ubicadas en el directorio `rtdetrv2_pytorch`.
 
 Tras finalizar el entrenamiento, se utilizó un script que, a partir del archivo de log.txt generado durante dicho entrenamiento, obtuviera unas gráficas que permitieran la visualización de los resultados.
 
+![Results](https://github.com/Darknight99V/VC/blob/ba391daa014cde28d82dfd850f16726ddb6d48a4/P4/rt-detr_training_graphs/results.png)
+
 ```python
 
 
