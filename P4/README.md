@@ -247,6 +247,7 @@ Se eligieron 100 épocas debido a que los archivos de configuración oficiales u
 
 Aunque el modelo confunde muchas matrículas con el resto de la imagen, se tiene la hipótesis de que ésto es debido a que la métrica es altamente restrictiva y aquellos *bounding boxes* que no se ajusten dentro del rango de mAP50-95.
 
+<br><br>
 **Resultados (YOLO)**:
 
 ![Resultados_generales](https://github.com/Darknight99V/VC/blob/61645974ecf75e6e574b5cc83d9029331ca10b67/P4/yolo_training_graphs/results.png)
@@ -492,15 +493,124 @@ coches.release()
 
 Finalmente, se utilizaron ambos modelos (el preentrenado con las clases seleccionadas y el que se entrenó con matrículas) sobre el vídeo de prueba proporcionado por el profesorado. El código también integra el conteo por clases y el flujo de personas y vehículos anteriormente expuestos.
 
-
+<br><br>
 ### Generación del CSV y volcado del vídeo en memoria
-(poner código de generación  de CSV asi como enlace a este CSV y una captura a modo de preview y decir que el volcado de memoria se hizo utilizando openCV, poner también gif del vídeo resultante)
+El código para la obtención del CSV se encuentra dentro del bucle que va ejecutando el vídeo de prueba frame a frame, ya que es en este momento en el que se obtienen los resultados de las inferencias realizadas con los modelos (YOLO básico y YOLO entrenado con matrículas), así como el PaddleOCR.
 
+```python
+result = results_yolo[0]
+    boxes = result.boxes
+
+    if boxes is not None and len(boxes) > 0:
+
+        coordenadas_obj = boxes.xyxy.cpu().numpy()
+        clases = boxes.cls.cpu().numpy()
+        confianzas_obj = boxes.conf.cpu().numpy()
+
+        # Obtener identificadores de tracking
+        if boxes.id is not None:
+            ids = boxes.id.int().cpu().numpy()
+        else:
+            ids = [None] * len(boxes)
+
+        for i, box in enumerate(coordenadas_obj):
+
+            x1, y1, x2, y2 = map(int, box)
+
+            clase = int(clases[i])
+            nombre = classNames[clase]
+
+            confianza_obj = float(confianzas_obj[i])
+            id_objeto = ids[i]
+
+            # Buscar matrículas cuyo centro esté dentro del objeto
+            matricula_asociada = None
+
+            for mat in matriculas_detectadas:
+
+                centro_x = (mat["mx1"] + mat["mx2"]) / 2
+                centro_y = (mat["my1"] + mat["my2"]) / 2
+
+                if x1 <= centro_x <= x2 and y1 <= centro_y <= y2:
+
+                    # Si hay varias, quedarse con la de mayor confianza
+                    if (
+                        matricula_asociada is None
+                        or mat["confianza"] > matricula_asociada["confianza"]
+                    ):
+                        matricula_asociada = mat
+
+            # Preparar información de matrícula
+            if matricula_asociada is not None:
+
+                tiene_matricula = "Sí"
+
+                confianza_mat = matricula_asociada["confianza"]
+
+                mx1 = matricula_asociada["mx1"]
+                my1 = matricula_asociada["my1"]
+                mx2 = matricula_asociada["mx2"]
+                my2 = matricula_asociada["my2"]
+
+                texto_matricula = matricula_asociada["texto"]
+
+            else:
+
+                tiene_matricula = "No"
+
+                confianza_mat = ""
+                mx1 = ""
+                my1 = ""
+                mx2 = ""
+                my2 = ""
+                texto_matricula = ""
+
+            # Escribir fila CSV
+            writer.writerow({
+                "fotograma": numero_fotograma,
+                "tipo_objeto": nombre,
+                "confianza_objeto": confianza_obj,
+                "identificador_tracking": id_objeto if id_objeto is not None else "",
+                "x1": x1,
+                "y1": y1,
+                "x2": x2,
+                "y2": y2,
+                "matricula_en_su_caso": tiene_matricula,
+                "confianza_matricula": confianza_mat,
+                "mx1": mx1,
+                "my1": my1,
+                "mx2": mx2,
+                "my2": my2,
+                "texto_matricula": texto_matricula
+            })
+```
+
+El archivo resultante es similar al siguiente:
+![detecciones_csv](https://github.com/Darknight99V/VC/blob/bfd50beee6ea48e5f38ea0b6a862f690abee17a6/P4/csv_photo.png)
+
+El archivo completo se encuentra en el respositorio [aquí](https://github.com/Darknight99V/VC/blob/958b2dc2a2f08982617be3564511ffeed3475c8e/P4/detecciones.csv)
+
+En cuanto al volcado del vídeo en memoria, esto se realizó utilizando OpenCV, concretamente se utilizó el VideoWriter:
+
+```python
+# Crear el vídeo de salida
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+
+out = cv2.VideoWriter(
+    "resultado.mp4",
+    fourcc,
+    fps,
+    (output_width, output_height)
+)
+```
+
+El vídeo se encuentra en el siguiente [enlace](https://drive.google.com/file/d/1775CjsWIsBzE_HJ4rQobX8NI0ajlxb4s/view?usp=sharing)
+
+<br><br>
 ### Comparación entre YOLO y RT-DETR
-(modelos entrenados en ambos casos, qué parámetros del entrenamiento se dejaron iguales, poner que se hizo en google colab y especificarlo en el YOLO también, mostrar gráficas relevantes y explicarlas, etc)
 
 #### Entrenamiento de RT-DETR
-De los diversos modelos RT-DETR disponibles en su [github](https://github.com/lyuwenyu/RT-DETR/tree/main), se escogió el de tamaño mediano (RT-DETRv2-M) para entrenarlo para que detecte matrículas. Los hiperparámetros escogidos para su entrenamiento tienen que ver con los de YOLO para que se pueda realizar una comparativa justa y porque ya venían en la configuración inicial definida por los autores en el repositorio.
+De los diversos modelos RT-DETR disponibles en su [github](https://github.com/lyuwenyu/RT-DETR/tree/main), se escogió el de tamaño mediano (RT-DETRv2-M) para entrenarlo utilizando fine-tuning para que detecte matrículas. Los hiperparámetros escogidos para su entrenamiento tienen que ver con los de YOLO para que se pueda realizar una comparativa justa y porque ya venían en la configuración inicial definida por los autores en el repositorio.
 
 | Parámetro | RT-DETR (Baidu) |
 | :--- | :--- |
@@ -525,18 +635,20 @@ Estas rutas a su vez se encuentran ubicadas en el directorio `rtdetrv2_pytorch`.
 
 #### Métricas y puesta a prueba del modelo
 
-Tras finalizar el entrenamiento, se utilizó un script que, a partir del archivo de log.txt generado durante dicho entrenamiento, obtuviera unas gráficas que permitieran la visualización de los resultados.
+Tras finalizar el entrenamiento, se utilizó un script que, a partir del archivo de log.txt generado durante dicho entrenamiento, obtuviera unas gráficas que permitieran la visualización de los resultados. Estos resultados se pueden observar en la siguiente imagen.
 
 ![Results](https://github.com/Darknight99V/VC/blob/ba391daa014cde28d82dfd850f16726ddb6d48a4/P4/rt-detr_training_graphs/results.png)
 
-```python
+Por lo observado en estas gráficas, se podría obtener como conclusiones principales de este entrenamiento que no hay señales claras de sobreajuste y que ha logrado estabilidad y converger. Esto quiere decir que el entrenamiento con las condiciones actuales, es decir, la resolución usada y que el LR se mantiene fijo, no va a mejorar más si se hicieran más épocas. Como se observa en la gráfica AP Small, todavía le cuestan las detecciones de matrículas pequeñas ya que AP small tiene un valor de alrededor de 0.37 frente al 0.62 y 0.76 de AP medium y AP large respectivamente. Esto se puede deber a que al haber empleado imágenes de tamaño 640x640, las matrículas más pequeñas ocupan menos píxeles y quedan más ilegibles. Esto reduce el IoU (Intersection of Union) y se ven penalizadas por el modelo.
 
 
-```
+#### Comparativa con YOLO
 
+En cuanto a la precisión de detección, pese a que RT-DETR presenta unos valores ligeramente superiores, una diferencia de aproximadamente 1,4 puntos de mAP@50-95. Sin embargo RT-DETR obtuvo mejor puntuación en mAP@50, lo que indica que detecta más matrículas con una localización aproximada.
 
+Si se habla de convergencia, por lo comentado acerca de las gráficas, RT-DETR logra converger mucho más rápido que YOLO, que en sus últimas épocas seguía intentando mejorar mientras que RT-DETR se mantenía estable. 
 
-
+Finalmente, se podría destacar el coste, ya que YOLO tardó 85 minutos mientras que RT-DETR tardó alrededor de 4h. Aunque en parte esto se deba a que RT-DETR cuenta con más parámetros, la diferencia sigue siendo significativa. 
 
 
 <br><br>
@@ -714,6 +826,7 @@ plt.show()
 
  Para una comparación justa en latencia, se desactivaron optimizaciones como MKL-DNN y la orientación de línea de texto en PaddleOCR, asumiendo que las matrículas ya están recortadas y alineadas.
 
+<br><br>
 ## Especificaciones hardware
 
  Las métricas en todos los apartados fueron sacadas de una máquina con GPU T4 en un Google Colab. 
