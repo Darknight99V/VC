@@ -650,6 +650,8 @@ Si se habla de convergencia, por lo comentado acerca de las gráficas, RT-DETR l
 
 Finalmente, se podría destacar el coste, ya que YOLO tardó 85 minutos mientras que RT-DETR tardó alrededor de 4h. Aunque en parte esto se deba a que RT-DETR cuenta con más parámetros, la diferencia sigue siendo significativa. 
 
+A modo de conlcusión, con las pruebas realizadas no se podría llegar a afirmar que RT-DETR sea mejor que YOLO o viceversa. Quizás con unas pruebas más exhaustivas que jueguen con factores como la resolución de la imagen o el ajuste del LR, podrían haber determinado un inclinación favorable hacia un modelo u otro.
+
 
 <br><br>
 ## Tarea 2 (Práctica 4b)
