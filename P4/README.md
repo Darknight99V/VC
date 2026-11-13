@@ -79,7 +79,25 @@ Antes de comenzar el entrenamiento, las imágenes se separaron en 3 conjuntos: t
 
 Además, también fue necesario para cumplir con el formato que requiere YOLO para el entrenamiento, convertir las anotaciones de formato JSON a TXT, lo que se hizo con un pequeño script. (Poner script) 
 
-(especificar mejor los parámetros de entrenamiento del YOLO: épocas, qué modelo se entrenó, LR...)
+Los parámetros usados para el entrenamiento del YOLO son los siguientes:
+
+| Parámetro | YOLO-M (Ultralytics) |
+| :--- | :--- |
+| **Épocas** | 100 |
+| **Optimizador** | `AdamW` 
+| **LR** | ~`1e-3` |
+| **Weight decay** | `5e-4` |
+| **Warmup** | 3 épocas |
+| **EMA** | Sí  |
+| **Aumentos** | `mosaic` (desactivado las últimas 10 épocas con `close_mosaic`), `HSV`, `flip`, `scale` |
+| **Early stopping** | `patience=30` |
+| **Tamaño de imagen** | 640 |
+
+Se usaron dichos hiperparámetros por varias razones:
+1. Comparativa justa entre YOLO y RT-DETR.
+2. Poder detectar matrículas situadas en la lejanía sin tener un nivel de detalle significativo que pudiese realentizar el entrenamiento.
+3. Evitar el fenómeno *overfiting*. 
+
 (explicar también alguna gráfica relevante que tenga que ver con el desarrollo del entrenamiento, como la función de pérdida o la matriz de confusión)
 
 <br><br>
