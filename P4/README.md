@@ -219,7 +219,7 @@ if __name__ == '__main__':
         print(n)
 ```
 
-Los parámetros usados para el entrenamiento del YOLO son los siguientes:
+Los parámetros usados para el entrenamiento del YOLO fueron los siguientes:
 
 | Parámetro | YOLO-M (Ultralytics) |
 | :--- | :--- |
@@ -325,7 +325,7 @@ class Image_Section:
         return string
 ```
 
-Los objetos descritos anteriormente se usan en el código de la siguiente manera: se recorren los resultados obtenidos por YOLO y se adquieren los IDs, *bounding boxes* en formato COCO y el tipo. Con estos datos, se crea un objeto en caso de no existir con dicho ID y se añaden las nuevas coordenadas al objeto. Más adelante, una vez termina el vídeo, se crean las 4 secciones de la imagen y por cada uno de los objetos creados, se calcula su trayectoria y se encaja en la sección correspondiente. Por último, se muestran los resultados de las predicciones. 
+Los objetos descritos anteriormente se usan en el código de la siguiente manera: se recorren los resultados obtenidos por YOLO y se adquieren los IDs, *bounding boxes* en formato YOLO y el tipo. Con estos datos, se crea un objeto en caso de no existir con dicho ID y se añaden las nuevas coordenadas al objeto. Más adelante, una vez termina el vídeo, se crean las 4 secciones de la imagen y por cada uno de los objetos creados, se calcula su trayectoria y se encaja en la sección correspondiente. Por último, se muestran los resultados de las predicciones. 
 
 ```python
   #video
@@ -492,9 +492,6 @@ coches.release()
 
 Finalmente, se utilizaron ambos modelos (el preentrenado con las clases seleccionadas y el que se entrenó con matrículas) sobre el vídeo de prueba proporcionado por el profesorado. El código también integra el conteo por clases y el flujo de personas y vehículos anteriormente expuestos.
 
-```python
-
-```
 
 ### Generación del CSV y volcado del vídeo en memoria
 (poner código de generación  de CSV asi como enlace a este CSV y una captura a modo de preview y decir que el volcado de memoria se hizo utilizando openCV, poner también gif del vídeo resultante)
@@ -502,7 +499,45 @@ Finalmente, se utilizaron ambos modelos (el preentrenado con las clases seleccio
 ### Comparación entre YOLO y RT-DETR
 (modelos entrenados en ambos casos, qué parámetros del entrenamiento se dejaron iguales, poner que se hizo en google colab y especificarlo en el YOLO también, mostrar gráficas relevantes y explicarlas, etc)
 
+#### Entrenamiento de RT-DETR
+De los diversos modelos RT-DETR disponibles en su [github](https://github.com/lyuwenyu/RT-DETR/tree/main), se escogió el de tamaño mediano (RT-DETRv2-M) para entrenarlo para que detecte matrículas. Los hiperparámetros escogidos para su entrenamiento tienen que ver con los de YOLO para que se pueda realizar una comparativa justa y porque ya venían en la configuración inicial definida por los autores en el repositorio.
 
+| Parámetro | RT-DETR (Baidu) |
+| :--- | :--- |
+| **Épocas** | 100 |
+| **Optimizador** | `AdamW` 
+| **LR** | ~`1e-05` |
+| **Weight decay** | `1e-4` |
+| **Warmup** | 500 |
+| **EMA** | sí  |
+| **Aumentos** | `photometric distort`, `zoom out`, `IoU crop`, `multi-escala`; se desactivan hacia el final|
+| **Early stopping** | no |
+| **Tamaño de imagen** | 640 |
+
+Antes de realizar el entrenamiento, se tuvo que hacer un preprocesado del dataset para hacer que las anotaciones estuvieran en formato COCO. Esto se realizó con el mismo script que se usó con las anotaciones de YOLO, como se mencionó anteriormente. Por otro lado, también fue necesario realizar un clonado del repositorio de RT-DETR en el disco de Google Colab.
+
+Además, la configuración previa al entrenamiento incluye dos archivos: el primero de ellos corresponde a la configuración del modelo en sí, se incluyen los hiperparámetros antes descritos y una referencia al archivo de configuración del dataset; y el segundo indica dónde se ubica el dataset a utilizar, así como los subconjuntos en los que se encuentra dividido (train, val, test). Los archivos se deben ubicar en las siguientes rutas dentro del repositorio RT-DETR:
+
+- `configs/rtdetrv2/rtdetrv2_r50vd_m_100e_plates.yml`
+- `configs/dataset/plates_detection.yml`
+
+Estas rutas a su vez se encuentran ubicadas en el directorio `rtdetrv2_pytorch`. Los contenidos de estos archivos de configuración se encuentran en el cuaderno correspondiente al entrenamiento de RT-DETR.
+
+#### Métricas y puesta a prueba del modelo
+
+Tras finalizar el entrenamiento, se utilizó un script que, a partir del archivo de log.txt generado durante dicho entrenamiento, obtuviera unas gráficas que permitieran la visualización de los resultados.
+
+```python
+
+
+```
+
+
+
+
+
+
+<br><br>
 ## Tarea 2 (Práctica 4b)
 
  A la hora de completar esta tarea, se empezó seleccionando los OCR que se iban a comparar. El modelo clásico elegido fue PaddleOCR, debido a su modernidad y rendimiento en comparación a los otros OCR que se expusieron en el enunciado. Por otro lado, el modelo VML usado fue SmolVML, debido a su facilidad de uso y buen rendimiento en ámbitos generales, además de por su ligereza. Los resultado obtenidos con PaddleOCR en el vídeo se pueden observar tanto en el mismo vídeo como en el fichero CSV, analizando la última columna. 
